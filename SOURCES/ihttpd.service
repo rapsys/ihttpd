@@ -1,0 +1,17 @@
+# Service unit starting ihttpd.service on password request
+[Unit]
+Description=Answer Password Requests from the Apache IHTTP Server
+DefaultDependencies=no
+Conflicts=shutdown.target multi-user.target graphical.target
+After=plymouth-start.service
+Before=paths.target shutdown.target
+ConditionPathExists=!/run/plymouth/pid
+
+[Service]
+Type=simple
+Environment=LANG=C
+ExecStart=/usr/sbin/ihttpd $OPTIONS -DFOREGROUND
+ExecReload=/usr/sbin/ihttpd $OPTIONS -k graceful
+KillSignal=SIGWINCH
+KillMode=mixed
+PIDFile=/run/ihttpd/ihttpd.pid

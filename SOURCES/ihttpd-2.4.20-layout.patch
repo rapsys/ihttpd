@@ -1,0 +1,33 @@
+
+Add layout for IHttpd.
+
+--- httpd-2.4.20/config.layout.orig
++++ httpd-2.4.20/config.layout
+@@ -370,3 +370,27 @@
+     logfiledir:      ${localstatedir}/log/httpd
+     proxycachedir:   ${localstatedir}/cache/httpd
+ </Layout>
++
++# IHttpd layout
++<Layout IHttpd>
++    prefix:        /usr
++    exec_prefix:   ${prefix}
++    bindir:        ${prefix}/bin
++    sbindir:       ${prefix}/sbin
++    libdir:        ${prefix}/lib
++    libexecdir:    ${prefix}/libexec
++    mandir:        ${prefix}/man
++    sysconfdir:    /etc
++    datadir:       ${prefix}/share/ihttpd
++    installbuilddir: ${libdir}/ihttpd/build
++    errordir:      ${datadir}/error
++    iconsdir:      ${datadir}/icons
++    htdocsdir:     /var/www/html
++    manualdir:     ${datadir}/manual
++    cgidir:        /var/www/cgi-bin
++    includedir:    ${prefix}/include/ihttpd
++    localstatedir: /var
++    runtimedir:    /run/ihttpd
++    logfiledir:    ${localstatedir}/log/ihttpd
++    proxycachedir: ${localstatedir}/cache/ihttpd/proxy
++</Layout>     

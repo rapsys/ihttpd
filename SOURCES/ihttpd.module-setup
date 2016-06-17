@@ -1,0 +1,203 @@
+#!/bin/bash
+
+# called by dracut
+check() {
+	local fs
+
+	# Fix tmpfiledir
+	#XXX: fix installation of /usr/lib/tmpfileS.d/{dracut-tmpfiles,systemd}.conf
+	#XXX: should be removed when bug 18642 (mageia) or 1343230 (fedora) will be fixed in /usr/bin/dracut +1262-1282
+	[ -z "$tmpfilesdir" -o ! -d "$tmpfilesdir" -a -d /usr/lib/tmpfiles.d ] && tmpfilesdir=/usr/lib/tmpfiles.d
+	[ -z "$tmpfilesdir" -o ! -d "$tmpfilesdir" -a -d /etc/tmpfiles.d ] && tmpfilesdir=/etc/tmpfiles.d
+	[ -z "$tmpfilesdir" -o ! -d "$tmpfilesdir" -a -d /lib/tmpfiles.d ] && tmpfilesdir=/lib/tmpfiles.d
+
+	# if cryptsetup is not installed, then we cannot support encrypted devices.
+	require_binaries cryptsetup || return 1
+
+	# if hostonly or mount_needs include if required by other module
+	# if one of fs types is crypto_LUKS include it
+	[[ $hostonly ]] || [[ $mount_needs ]] && {
+		for fs in "${host_fs_types[@]}"; do
+			[[ $fs = "crypto_LUKS" ]] && return 0
+		done
+		return 255
+	}
+
+	return 0
+}
+
+# called by dracut
+depends() {
+	# depend on crypt for /etc/crypttab
+	# depend on systemd-networkd for ip=dhcp and rd.neednet=1
+	# depend on dracut-systemd for appending to $tmpfilesdir/dracut-tmpfiles.conf
+	echo crypt systemd-networkd dracut-systemd
+	return 0
+}
+
+# called by dracut
+cmdline() {
+	local fs
+	for fs in "${host_fs_types[@]}"; do
+		if [[ "$fs" == "crypto_LUKS" ]]; then
+			printf "%s" " ip=dhcp rd.neednet=1"
+			break
+		fi
+	done
+}
+
+# called by dracut
+install() {
+	local _ihttpdconf=$(cmdline)
+	local fs
+	[[ $_ihttpdconf ]] && printf "%s\n" "$_ihttpdconf" >> "${initdir}/etc/cmdline.d/99ihttpd.conf"
+
+	# Install cert dirs
+	inst_dir /etc/pki/tls/certs
+	inst_dir /etc/pki/tls/private
+	inst_dir /etc/systemd/network
+	inst_dir /var/www/html
+	inst_dir $systemdsystemunitdir/ihttpd.service.wants
+
+	# Install favicon
+	inst_simple -o /var/www/html/favicon.ico
+
+	# Install network
+	for nc in `ls /etc/systemd/network/`; do
+		inst_simple /etc/systemd/network/$nc
+	done
+
+	# Install index.bin
+	inst_simple /usr/lib/ihttpd/index.bin /var/www/html/index.bin
+
+	# Install reboot.bin
+	inst_simple /usr/lib/ihttpd/reboot.bin /var/www/html/reboot.bin
+
+	# Install all files
+	inst_multiple \
+		/etc/hosts \
+		/etc/mime.types \
+		/etc/localtime \
+		/etc/nsswitch.conf \
+		/etc/ihttpd.conf \
+		/etc/pki/tls/certs/ihttpd.pem \
+		/etc/pki/tls/private/ihttpd.pem \
+		$tmpfilesdir/ihttpd.conf \
+		$systemdsystemunitdir/ihttpd.path \
+		$systemdsystemunitdir/ihttpd.service \
+		$systemdsystemunitdir/systemd-networkd.service \
+		$systemdsystemunitdir/systemd-tmpfiles-setup.service \
+		'/usr/bin/false' \
+		'/usr/bin/reboot' \
+		/usr/sbin/ihttpd
+
+	# Install ihttpd.path
+	ln -fs ../ihttpd.path $initdir$systemdsystemunitdir/sysinit.target.wants/
+
+	# Install resolv.conf as resolved service
+	#TODO: change this to have a content or depend on systemd-resolved
+	if [ -L /etc/resolv.conf ]; then
+
+		# Install systemd-resolved
+		if [ `readlink /etc/resolv.conf` = '/run/systemd/resolve/resolv.conf' ]; then
+
+			# Install resolv.conf as symlink
+			ln -fs '/run/systemd/resolve/resolv.conf' $initdir/etc/resolv.conf
+
+			# Install systemd-resolved
+			inst_multiple \
+				$systemdsystemunitdir/systemd-resolved.service \
+				$systemdutildir/systemd-resolved \
+				/etc/systemd/resolved.conf
+
+			# Require systemd-resolve user and group for our ihttpd process
+			`egrep -q '^systemd-resolve:' $initdir/etc/group` || egrep '^systemd-resolve:' /etc/group >> "$initdir/etc/group"
+			`egrep -q '^systemd-resolve:' $initdir/etc/passwd` || egrep '^systemd-resolve:' /etc/passwd >> "$initdir/etc/passwd"
+
+			# Install in ihttpd.service.wants
+			ln -fs ../systemd-resolved.service $initdir$systemdsystemunitdir/ihttpd.service.wants/
+
+			# Cleanup resolved.conf
+			perl -pne 'undef $_ if /^(?:#.*|Domains=|FallbackDNS=|DNS=(?:127.0.0.1|::1)$|$)/;/^DNS=/ && $_ =~ s/(?:127.0.0.1|::1)[ \t]*//g' \
+				-i "$initdir/etc/systemd/resolved.conf"
+
+			# Cleanup systemd-resolved.service
+			perl -pne 'undef $_ if /^(?:#|(?:Wants|After)=org\.freedesktop\.resolve1\.busname)/' \
+				-i "$initdir$systemdsystemunitdir/systemd-resolved.service"
+
+		# Try install the target file
+		else
+			inst_simple /etc/resolv.conf
+		fi
+
+	# Install resolv.conf as file
+	elif [ -e /etc/resolv.conf ]; then
+
+		# Install resolv.conf as file
+		inst_simple /etc/resolv.conf
+
+		# Cleanup resolv.conf
+		#XXX: strip search, localhost and ipv6
+		perl -pne 'undef $_ if /^(?:#.*|search\s+|nameserver\s+127.0.0.1|nameserver\s+[^:\s]+:[^\s]+|$)/' \
+			-i "$initdir/etc/resolv.conf"
+
+	# Touch resolv.conf file
+	else
+		# We did what we could
+		touch "$initdir/etc/resolv.conf"
+	fi
+
+	# Install ihttpd log
+	ln -fs ../../../run/ihttpd/log/{http,https,child.{askpassword,ihttpd},error}.log $initdir/var/www/html/
+
+	# Install in ihttpd.service.wants
+	ln -fs ../systemd-networkd.service $initdir$systemdsystemunitdir/ihttpd.service.wants/
+	ln -fs ../systemd-tmpfiles-setup.service $initdir$systemdsystemunitdir/ihttpd.service.wants/
+
+	# Include all ihttpd deps
+	inst_libdir_file \
+		"ld-linux-*.so.*" \
+		"libapr-1.so.*" \
+		"libaprutil-1.so.*" \
+		"libcrypto.so.*" \
+		"libcrypt.so.*" \
+		"libc.so.*" \
+		"libdb-*.so" \
+		"libdl.so.*" \
+		"libexpat.so.*" \
+		"libnsl.so.*" \
+		"libpcre.so.*" \
+		"libpthread.so.*" \
+		"libresolv.so.*" \
+		"librt.so.*" \
+		"libuuid.so.*" \
+		"libz.so.*" \
+		"libnss_files.so.*" \
+		"libnss_dns.so.*" \
+		"libnss_myhostname.so.*" \
+		{"tls/$_arch/",tls/,"$_arch/",}"libssl.so.*" 
+
+	# Cleanup nsswitch.conf
+	if [ -f "$initdir/etc/nsswitch.conf" ]; then
+		perl -pne 'undef $_ if /^(?:#|$)/;s/compat/files/;s/ ?(?:nis|wins|mdns4_minimal |mdns4)( )?/\1/g' \
+			-i "$initdir/etc/nsswitch.conf"
+	fi
+
+	# Cleanup systemd-networkd.service
+	if [ -f "$initdir$systemdsystemunitdir/systemd-networkd.service" ]; then
+		perl -pne 'undef $_ if /^(?:#|(?:Wants|After)=org\.freedesktop\.network1\.busname)/;s/^After=(systemd-udevd.service )dbus.service network-pre.target systemd-sysusers.service /After=\1/' \
+			-i "$initdir$systemdsystemunitdir/systemd-networkd.service"
+	fi
+
+	# Cleanup systemd-tmpfiles-setup.service
+	if [ -f "$initdir$systemdsystemunitdir/systemd-tmpfiles-setup.service" ]; then
+		perl -pne 'undef $_ if /^#/;s/After=(.*) systemd-sysusers.service/After=\1/' \
+			-i "$initdir$systemdsystemunitdir/systemd-tmpfiles-setup.service"
+	fi
+
+	#XXX: bug: fix /usr/lib/tmpfiles.d/{systemd,dracut-tmpfiles}.conf missing user and group
+	`egrep -q '^utmp:' $initdir/etc/group` || egrep '^utmp:' /etc/group >> "$initdir/etc/group"
+	# Require root user and group for our ihttpd process
+	`egrep -q '^root:' $initdir/etc/group` || egrep '^root:' /etc/group >> "$initdir/etc/group"
+	`egrep -q '^root:' $initdir/etc/passwd` || egrep '^root:' /etc/passwd >> "$initdir/etc/passwd"
+}

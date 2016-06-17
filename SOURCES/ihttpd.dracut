@@ -1,0 +1,4 @@
+# Unomit mageia's omited network and systemd modules
+omit_dracutmodules=" network "
+# Force dhcp and net in initramfs
+#kernel_cmdline+=" ip=dhcp rd.neednet=1 "
