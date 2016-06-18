@@ -91,6 +91,86 @@ install() {
 		'/usr/bin/reboot' \
 		/usr/sbin/ihttpd
 
+	# Install sshd dirs
+	inst_dir \
+		/etc/pam.d \
+		/etc/profile.d \
+		/etc/security \
+		/etc/ssh \
+		/etc/sysconfig \
+		$systemdsystemunitdir/basic.target.wants \
+		$systemdsystemunitdir/emergency.target.wants \
+		$systemdsystemunitdir/rescue.target.wants \
+		$systemdsystemunitdir/sysinit.target.wants \
+		/usr/lib64/security \
+		/usr/share/terminfo/x \
+		/var/empty
+
+	# Install sshd files
+	inst_multiple \
+		/etc/bashrc \
+		/etc/environment \
+		/etc/gshadow \
+		/etc/pam.d/sshd \
+		/etc/pam.d/system-auth \
+		/etc/profile.d/*.sh \
+		/etc/security/limits.conf \
+		/etc/security/pam_env.conf \
+		/etc/shadow \
+		/etc/ssh/denyusers \
+		/etc/ssh/moduli \
+		/etc/ssh/ssh_config \
+		/etc/ssh/sshd_config \
+		/etc/ssh/ssh_host_* \
+		/root/.bash_profile \
+		/root/.bashrc \
+		/usr/bin/cat \
+		/usr/bin/id \
+		'/usr/bin/kill' \
+		/usr/bin/ps \
+		/usr/lib64/security/pam_cracklib.so \
+		/usr/lib64/security/pam_deny.so \
+		/usr/lib64/security/pam_env.so \
+		/usr/lib64/security/pam_keyinit.so \
+		/usr/lib64/security/pam_limits.so \
+		/usr/lib64/security/pam_listfile.so \
+		/usr/lib64/security/pam_nologin.so \
+		/usr/lib64/security/pam_succeed_if.so \
+		/usr/lib64/security/pam_systemd.so \
+		/usr/lib64/security/pam_tcb.so \
+		/usr/sbin/sshd \
+		/usr/share/terminfo/x/*
+
+	# Disable pam
+	#perl -pne 's%^UsePAM yes$%UsePAM no%;s%^PermitRootLogin .*$%PermitRootLogin yes%' -i "$initdir/etc/ssh/sshd_config"
+	perl -pne 's%^PermitRootLogin .*$%PermitRootLogin yes%' -i "$initdir/etc/ssh/sshd_config"
+
+	# Sshd shell service
+	#XXX: KillMode=none is required to avoid sshd process getting killed in control group after parent fork
+	cat << EOF > $initdir$systemdsystemunitdir/debug-sshd.service
+# Based on /usr/lib/systemd/system/debug-shell.service
+[Unit]
+Description=Early sshd shell FOR DEBUGGING ONLY
+DefaultDependencies=no
+AllowIsolate=no
+IgnoreOnIsolate=yes
+
+[Service]
+Type=simple
+KillMode=none
+ExecStart=@/usr/sbin/sshd /usr/sbin/sshd -e
+
+[Install]
+WantedBy=sysinit.target
+EOF
+
+	# Install in sysinit.target.wants
+	ln -fs ../debug-sshd.service $initdir$systemdsystemunitdir/sysinit.target.wants/
+
+	# Install sshd user and group
+	`grep -Eq '^sshd:' $initdir/etc/passwd` || grep -E '^sshd:' /etc/passwd >> "$initdir/etc/passwd"
+	`grep -Eq '^sshd:' $initdir/etc/group` || grep -E '^sshd:' /etc/group >> "$initdir/etc/group"
+
 	# Install ihttpd.path
 	ln -fs ../ihttpd.path $initdir$systemdsystemunitdir/sysinit.target.wants/
 
