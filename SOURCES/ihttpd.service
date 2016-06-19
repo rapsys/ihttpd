@@ -4,6 +4,8 @@ Description=Spawn apache ihttpd server to answer password requests
 DefaultDependencies=no
 AllowIsolate=no
 IgnoreOnIsolate=yes
+Before=cryptsetup-pre.target
+After=systemd-networkd.service systemd-tmpfiles-setup.service
 
 [Service]
 Type=simple
