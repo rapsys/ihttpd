@@ -16,7 +16,6 @@ Source1:	index.bin.c
 Source2:	reboot.sh
 Source14:	ihttpd.tmpfiles
 Source15:	ihttpd.service
-Source17:	ihttpd.path
 Source18:	ihttpd.dracut
 Source19:	ihttpd.module-setup
 Source20:	ihttpd.conf
@@ -176,17 +175,8 @@ gcc index.bin.c -o index.bin
 #IHttpd sbin
 install -D -p -m 755 ihttpd %{buildroot}%{_sbindir}/ihttpd
 
-#IHttpd config
-install -D -p -m 644 %{SOURCE20} %{buildroot}%{_sysconfdir}/ihttpd.conf
-
 #Tmpfiles.d config
 install -D -p -m 644 %{SOURCE14} %{buildroot}%{_tmpfilesdir}/ihttpd.conf
-
-#IHttpd service
-install -D -p -m 644 %{SOURCE15} %{buildroot}%{_unitdir}/ihttpd.service
-
-#IHttpd path
-install -D -p -m 644 %{SOURCE17} %{buildroot}%{_unitdir}/ihttpd.path
 
 #IHttpd dracut config
 install -D -p -m 644 %{SOURCE18} %{buildroot}%{_sysconfdir}/dracut.conf.d/99-%{name}.conf
@@ -195,10 +185,13 @@ install -D -p -m 644 %{SOURCE18} %{buildroot}%{_sysconfdir}/dracut.conf.d/99-%{n
 install -d -m 755 %{buildroot}%{_prefix}/lib/dracut/modules.d/99ihttpd
 install -D -p -m 755 %{SOURCE19} %{buildroot}%{_prefix}/lib/dracut/modules.d/99ihttpd/module-setup.sh
 
-#Ihttpd index.bin
+#Ihttpd files
 install -d -m 755 %{buildroot}%{_prefix}/lib/%{name}
 install -D -p -m 755 index.bin %{buildroot}%{_prefix}/lib/%{name}/index.bin
 install -D -p -m 755 %{SOURCE2} %{buildroot}%{_prefix}/lib/%{name}/reboot.bin
+install -D -p -m 644 %{SOURCE20} %{buildroot}%{_prefix}/lib/%{name}/ihttpd.conf
+install -D -p -m 644 %{SOURCE15} %{buildroot}%{_prefix}/lib/%{name}/ihttpd.service
+
 
 %find_lang %name
 
@@ -211,13 +204,13 @@ install -D -p -m 755 %{SOURCE2} %{buildroot}%{_prefix}/lib/%{name}/reboot.bin
 %_preun_service %{name}
 
 %files -n %name
-%config(noreplace) %{_sysconfdir}/%{name}.conf
+%config(noreplace) %{_prefix}/lib/%{name}/%{name}.conf
 %config(noreplace) %{_sysconfdir}/dracut.conf.d/99-%{name}.conf
 %{_sbindir}/%{name}
 %{_tmpfilesdir}/%{name}.conf
-%{_unitdir}/%{name}.path
 %dir %{_prefix}/lib/dracut/modules.d/99ihttpd
 %{_prefix}/lib/dracut/modules.d/99ihttpd/module-setup.sh
-%{_unitdir}/%{name}.service
+%dir %{_prefix}/lib/%{name}
+%{_prefix}/lib/%{name}/%{name}.service
 %{_prefix}/lib/%{name}/index.bin
 %{_prefix}/lib/%{name}/reboot.bin
