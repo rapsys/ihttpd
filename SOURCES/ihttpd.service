@@ -1,17 +1,17 @@
-# Service unit starting ihttpd.service on password request
+# Based on /usr/lib/systemd/system/debug-shell.service
 [Unit]
-Description=Answer Password Requests from the Apache IHTTP Server
+Description=Spawn apache ihttpd server to answer password requests
 DefaultDependencies=no
-Conflicts=shutdown.target multi-user.target graphical.target
-After=plymouth-start.service
-Before=paths.target shutdown.target
-ConditionPathExists=!/run/plymouth/pid
+AllowIsolate=no
+IgnoreOnIsolate=yes
 
 [Service]
 Type=simple
 Environment=LANG=C
-ExecStart=/usr/sbin/ihttpd $OPTIONS -DFOREGROUND
-ExecReload=/usr/sbin/ihttpd $OPTIONS -k graceful
+ExecStart=/usr/sbin/ihttpd -DFOREGROUND
 KillSignal=SIGWINCH
 KillMode=mixed
 PIDFile=/run/ihttpd/ihttpd.pid
+
+[Install]
+WantedBy=sysinit.target
