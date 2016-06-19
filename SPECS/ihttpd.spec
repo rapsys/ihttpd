@@ -197,11 +197,7 @@ install -D -p -m 644 %{SOURCE15} %{buildroot}%{_prefix}/lib/%{name}/ihttpd.servi
 
 %post
 %_tmpfilescreate %{name}
-%_post_service %{name}
 %_create_ssl_certificate %{name}
-
-%preun
-%_preun_service %{name}
 
 %files -n %name
 %config(noreplace) %{_prefix}/lib/%{name}/%{name}.conf
