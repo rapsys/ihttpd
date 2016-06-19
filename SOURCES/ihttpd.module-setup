@@ -29,7 +29,7 @@ check() {
 # called by dracut
 depends() {
 	# depend on crypt for /etc/crypttab
-	# depend on systemd-networkd for ip=dhcp and rd.neednet=1
+	# depend on systemd-networkd for rd.neednet=1
 	# depend on dracut-systemd for appending to $tmpfilesdir/dracut-tmpfiles.conf
 	echo crypt systemd-networkd dracut-systemd
 	return 0
@@ -40,7 +40,8 @@ cmdline() {
 	local fs
 	for fs in "${host_fs_types[@]}"; do
 		if [[ "$fs" == "crypto_LUKS" ]]; then
-			printf "%s" " ip=dhcp rd.neednet=1"
+			#XXX we used to include ip=dhcp as well (replaced by systemd-networkd configuration)
+			printf "%s" " rd.neednet=1"
 			break
 		fi
 	done
@@ -50,189 +51,37 @@ cmdline() {
 install() {
 	local _ihttpdconf=$(cmdline)
 	local fs
+	#XXX: rd.neednet=1 is mandatory to have active network in initrd
 	[[ $_ihttpdconf ]] && printf "%s\n" "$_ihttpdconf" >> "${initdir}/etc/cmdline.d/99ihttpd.conf"
 
 	# Install cert dirs
-	inst_dir /etc/pki/tls/certs
-	inst_dir /etc/pki/tls/private
-	inst_dir /etc/systemd/network
-	inst_dir /var/www/html
-	inst_dir $systemdsystemunitdir/ihttpd.service.wants
-
-	# Install favicon
-	inst_simple -o /var/www/html/favicon.ico
-
-	# Install network
-	for nc in `ls /etc/systemd/network/`; do
-		inst_simple /etc/systemd/network/$nc
-	done
-
-	# Install index.bin
-	inst_simple /usr/lib/ihttpd/index.bin /var/www/html/index.bin
-
-	# Install reboot.bin
-	inst_simple /usr/lib/ihttpd/reboot.bin /var/www/html/reboot.bin
+	inst_dir \
+		/etc/pki/tls/certs \
+		/etc/pki/tls/private \
+		/etc/systemd/network \
+		$systemdsystemunitdir/ihttpd.service.wants \
+		/var/www/html
 
 	# Install all files
 	inst_multiple \
 		/etc/hosts \
-		/etc/mime.types \
 		/etc/localtime \
+		/etc/mime.types \
 		/etc/nsswitch.conf \
-		/etc/ihttpd.conf \
 		/etc/pki/tls/certs/ihttpd.pem \
 		/etc/pki/tls/private/ihttpd.pem \
-		$tmpfilesdir/ihttpd.conf \
-		$systemdsystemunitdir/ihttpd.path \
-		$systemdsystemunitdir/ihttpd.service \
+		/etc/systemd/resolved.conf \
 		$systemdsystemunitdir/systemd-networkd.service \
+		$systemdsystemunitdir/systemd-resolved.service \
 		$systemdsystemunitdir/systemd-tmpfiles-setup.service \
+		$systemdutildir/systemd-resolved \
+		$tmpfilesdir/ihttpd.conf \
 		'/usr/bin/false' \
 		'/usr/bin/reboot' \
 		/usr/sbin/ihttpd
 
-	# Install sshd dirs
-	inst_dir \
-		/etc/pam.d \
-		/etc/profile.d \
-		/etc/security \
-		/etc/ssh \
-		/etc/sysconfig \
-		$systemdsystemunitdir/basic.target.wants \
-		$systemdsystemunitdir/emergency.target.wants \
-		$systemdsystemunitdir/rescue.target.wants \
-		$systemdsystemunitdir/sysinit.target.wants \
-		/usr/lib64/security \
-		/usr/share/terminfo/x \
-		/var/empty
-
-	# Install sshd files
-	inst_multiple \
-		/etc/bashrc \
-		/etc/environment \
-		/etc/gshadow \
-		/etc/pam.d/sshd \
-		/etc/pam.d/system-auth \
-		/etc/profile.d/*.sh \
-		/etc/security/limits.conf \
-		/etc/security/pam_env.conf \
-		/etc/shadow \
-		/etc/ssh/denyusers \
-		/etc/ssh/moduli \
-		/etc/ssh/ssh_config \
-		/etc/ssh/sshd_config \
-		/etc/ssh/ssh_host_* \
-		/root/.bash_profile \
-		/root/.bashrc \
-		/usr/bin/cat \
-		/usr/bin/id \
-		'/usr/bin/kill' \
-		/usr/bin/ps \
-		/usr/lib64/security/pam_cracklib.so \
-		/usr/lib64/security/pam_deny.so \
-		/usr/lib64/security/pam_env.so \
-		/usr/lib64/security/pam_keyinit.so \
-		/usr/lib64/security/pam_limits.so \
-		/usr/lib64/security/pam_listfile.so \
-		/usr/lib64/security/pam_nologin.so \
-		/usr/lib64/security/pam_succeed_if.so \
-		/usr/lib64/security/pam_systemd.so \
-		/usr/lib64/security/pam_tcb.so \
-		/usr/sbin/sshd \
-		/usr/share/terminfo/x/*
-
-	# Disable pam
-	#perl -pne 's%^UsePAM yes$%UsePAM no%;s%^PermitRootLogin .*$%PermitRootLogin yes%' -i "$initdir/etc/ssh/sshd_config"
-	perl -pne 's%^PermitRootLogin .*$%PermitRootLogin yes%' -i "$initdir/etc/ssh/sshd_config"
-
-	# Sshd shell service
-	#XXX: KillMode=none is required to avoid sshd process getting killed in control group after parent fork
-	cat << EOF > $initdir$systemdsystemunitdir/debug-sshd.service
-# Based on /usr/lib/systemd/system/debug-shell.service
-[Unit]
-Description=Early sshd shell FOR DEBUGGING ONLY
-DefaultDependencies=no
-AllowIsolate=no
-IgnoreOnIsolate=yes
-
-[Service]
-Type=simple
-KillMode=none
-ExecStart=@/usr/sbin/sshd /usr/sbin/sshd -e
-
-[Install]
-WantedBy=sysinit.target
-EOF
-
-	# Install in sysinit.target.wants
-	ln -fs ../debug-sshd.service $initdir$systemdsystemunitdir/sysinit.target.wants/
-
-	# Install sshd user and group
-	`grep -Eq '^sshd:' $initdir/etc/passwd` || grep -E '^sshd:' /etc/passwd >> "$initdir/etc/passwd"
-	`grep -Eq '^sshd:' $initdir/etc/group` || grep -E '^sshd:' /etc/group >> "$initdir/etc/group"
-
-	# Install ihttpd.path
-	ln -fs ../ihttpd.path $initdir$systemdsystemunitdir/sysinit.target.wants/
-
-	# Install resolv.conf as resolved service
-	#TODO: change this to have a content or depend on systemd-resolved
-	if [ -L /etc/resolv.conf ]; then
-
-		# Install systemd-resolved
-		if [ `readlink /etc/resolv.conf` = '/run/systemd/resolve/resolv.conf' ]; then
-
-			# Install resolv.conf as symlink
-			ln -fs '/run/systemd/resolve/resolv.conf' $initdir/etc/resolv.conf
-
-			# Install systemd-resolved
-			inst_multiple \
-				$systemdsystemunitdir/systemd-resolved.service \
-				$systemdutildir/systemd-resolved \
-				/etc/systemd/resolved.conf
-
-			# Require systemd-resolve user and group for our ihttpd process
-			`egrep -q '^systemd-resolve:' $initdir/etc/group` || egrep '^systemd-resolve:' /etc/group >> "$initdir/etc/group"
-			`egrep -q '^systemd-resolve:' $initdir/etc/passwd` || egrep '^systemd-resolve:' /etc/passwd >> "$initdir/etc/passwd"
-
-			# Install in ihttpd.service.wants
-			ln -fs ../systemd-resolved.service $initdir$systemdsystemunitdir/ihttpd.service.wants/
-
-			# Cleanup resolved.conf
-			perl -pne 'undef $_ if /^(?:#.*|Domains=|FallbackDNS=|DNS=(?:127.0.0.1|::1)$|$)/;/^DNS=/ && $_ =~ s/(?:127.0.0.1|::1)[ \t]*//g' \
-				-i "$initdir/etc/systemd/resolved.conf"
-
-			# Cleanup systemd-resolved.service
-			perl -pne 'undef $_ if /^(?:#|(?:Wants|After)=org\.freedesktop\.resolve1\.busname)/' \
-				-i "$initdir$systemdsystemunitdir/systemd-resolved.service"
-
-		# Try install the target file
-		else
-			inst_simple /etc/resolv.conf
-		fi
-
-	# Install resolv.conf as file
-	elif [ -e /etc/resolv.conf ]; then
-
-		# Install resolv.conf as file
-		inst_simple /etc/resolv.conf
-
-		# Cleanup resolv.conf
-		#XXX: strip search, localhost and ipv6
-		perl -pne 'undef $_ if /^(?:#.*|search\s+|nameserver\s+127.0.0.1|nameserver\s+[^:\s]+:[^\s]+|$)/' \
-			-i "$initdir/etc/resolv.conf"
-
-	# Touch resolv.conf file
-	else
-		# We did what we could
-		touch "$initdir/etc/resolv.conf"
-	fi
-
-	# Install ihttpd log
-	ln -fs ../../../run/ihttpd/log/{http,https,child.{askpassword,ihttpd},error}.log $initdir/var/www/html/
-
-	# Install in ihttpd.service.wants
-	ln -fs ../systemd-networkd.service $initdir$systemdsystemunitdir/ihttpd.service.wants/
-	ln -fs ../systemd-tmpfiles-setup.service $initdir$systemdsystemunitdir/ihttpd.service.wants/
+	# Install favicon
+	inst_simple -o /var/www/html/favicon.ico
 
 	# Include all ihttpd deps
 	inst_libdir_file \
@@ -257,27 +106,113 @@ EOF
 		"libnss_myhostname.so.*" \
 		{"tls/$_arch/",tls/,"$_arch/",}"libssl.so.*" 
 
+	# Install ihttpd.conf index.bin reboot.bin ihttpd.service
+	for nc in /etc/ihttpd.conf /var/www/html/index.bin /var/www/html/reboot.bin $systemdsystemunitdir/ihttpd.service; do
+		inst_simple /usr/lib/ihttpd/${nc##*/} $nc
+	done
+
+	# Force load of ihttpd.service
+	ln -fs ../ihttpd.service $initdir$systemdsystemunitdir/sysinit.target.wants/
+
+	# Copy systemd-networkd config
+	for nc in `ls /etc/systemd/network/`; do
+		inst_simple /etc/systemd/network/$nc
+	done
+
+	# Install resolv.conf as symlink
+	ln -fs '/run/systemd/resolve/resolv.conf' $initdir/etc/resolv.conf
+
+	# Install in ihttpd.service.wants
+	ln -fs \
+		../systemd-resolved.service \
+		../systemd-networkd.service \
+		../systemd-tmpfiles-setup.service \
+		$initdir$systemdsystemunitdir/ihttpd.service.wants/
+
+	# Cleanup resolved.conf
+	perl -pne 'undef $_ if /^(?:#.*|Domains=|FallbackDNS=|DNS=(?:127.0.0.1|::1)$|$)/;/^DNS=/ && $_ =~ s/(?:127.0.0.1|::1)[ \t]*//g' \
+		-i "$initdir/etc/systemd/resolved.conf"
+
 	# Cleanup nsswitch.conf
-	if [ -f "$initdir/etc/nsswitch.conf" ]; then
-		perl -pne 'undef $_ if /^(?:#|$)/;s/compat/files/;s/ ?(?:nis|wins|mdns4_minimal |mdns4)( )?/\1/g' \
-			-i "$initdir/etc/nsswitch.conf"
-	fi
+	perl -pne 'undef $_ if /^(?:#|$)/;s/compat/files/;s/ ?(?:nis|wins|mdns4_minimal |mdns4)( )?/\1/g' \
+		-i "$initdir/etc/nsswitch.conf"
 
-	# Cleanup systemd-networkd.service
-	if [ -f "$initdir$systemdsystemunitdir/systemd-networkd.service" ]; then
-		perl -pne 'undef $_ if /^(?:#|(?:Wants|After)=org\.freedesktop\.network1\.busname)/;s/^After=(systemd-udevd.service )dbus.service network-pre.target systemd-sysusers.service /After=\1/' \
-			-i "$initdir$systemdsystemunitdir/systemd-networkd.service"
-	fi
-
-	# Cleanup systemd-tmpfiles-setup.service
-	if [ -f "$initdir$systemdsystemunitdir/systemd-tmpfiles-setup.service" ]; then
-		perl -pne 'undef $_ if /^#/;s/After=(.*) systemd-sysusers.service/After=\1/' \
-			-i "$initdir$systemdsystemunitdir/systemd-tmpfiles-setup.service"
-	fi
-
+	# Require systemd-resolve user and group for our ihttpd process
+	`egrep -q '^systemd-resolve:' $initdir/etc/group` || egrep '^systemd-resolve:' /etc/group >> "$initdir/etc/group"
+	`egrep -q '^systemd-resolve:' $initdir/etc/passwd` || egrep '^systemd-resolve:' /etc/passwd >> "$initdir/etc/passwd"
 	#XXX: bug: fix /usr/lib/tmpfiles.d/{systemd,dracut-tmpfiles}.conf missing user and group
 	`egrep -q '^utmp:' $initdir/etc/group` || egrep '^utmp:' /etc/group >> "$initdir/etc/group"
 	# Require root user and group for our ihttpd process
 	`egrep -q '^root:' $initdir/etc/group` || egrep '^root:' /etc/group >> "$initdir/etc/group"
 	`egrep -q '^root:' $initdir/etc/passwd` || egrep '^root:' /etc/passwd >> "$initdir/etc/passwd"
+
+	# For debug only
+	if false; then
+		# Install ihttpd log
+		ln -fs ../../../run/ihttpd/log/{http,https,child.{askpassword,ihttpd},error}.log $initdir/var/www/html/
+
+		# Install sshd dirs
+		inst_dir \
+			/etc/pam.d \
+			/etc/profile.d \
+			/etc/security \
+			/etc/ssh \
+			/etc/sysconfig \
+			$systemdsystemunitdir/basic.target.wants \
+			$systemdsystemunitdir/emergency.target.wants \
+			$systemdsystemunitdir/rescue.target.wants \
+			$systemdsystemunitdir/sysinit.target.wants \
+			/usr/lib64/security \
+			/usr/share/terminfo/x \
+			/var/empty
+
+		# Install sshd files
+		inst_multiple \
+			/etc/bashrc \
+			/etc/environment \
+			/etc/gshadow \
+			/etc/pam.d/sshd \
+			/etc/pam.d/system-auth \
+			/etc/profile.d/*.sh \
+			/etc/security/limits.conf \
+			/etc/security/pam_env.conf \
+			/etc/shadow \
+			/etc/ssh/denyusers \
+			/etc/ssh/moduli \
+			/etc/ssh/ssh_config \
+			/etc/ssh/sshd_config \
+			/etc/ssh/ssh_host_* \
+			/root/.bash_profile \
+			/root/.bashrc \
+			/usr/bin/cat \
+			/usr/bin/id \
+			'/usr/bin/kill' \
+			/usr/bin/ps \
+			/usr/lib64/security/pam_cracklib.so \
+			/usr/lib64/security/pam_deny.so \
+			/usr/lib64/security/pam_env.so \
+			/usr/lib64/security/pam_keyinit.so \
+			/usr/lib64/security/pam_limits.so \
+			/usr/lib64/security/pam_listfile.so \
+			/usr/lib64/security/pam_nologin.so \
+			/usr/lib64/security/pam_succeed_if.so \
+			/usr/lib64/security/pam_systemd.so \
+			/usr/lib64/security/pam_tcb.so \
+			/usr/sbin/sshd \
+			/usr/share/terminfo/x/*
+
+		# Disable pam
+		#perl -pne 's%^UsePAM yes$%UsePAM no%;s%^PermitRootLogin .*$%PermitRootLogin yes%' -i "$initdir/etc/ssh/sshd_config"
+		perl -pne 's%^PermitRootLogin .*$%PermitRootLogin yes%' -i "$initdir/etc/ssh/sshd_config"
+
+		# Install debug sshd service
+		inst_simple /usr/lib/ihttpd/debug-sshd.service $initdir$systemdsystemunitdir/debug-sshd.service
+
+		# Install in sysinit.target.wants
+		ln -fs ../debug-sshd.service $initdir$systemdsystemunitdir/sysinit.target.wants/
+
+		# Install sshd user and group
+		`grep -Eq '^sshd:' $initdir/etc/passwd` || grep -E '^sshd:' /etc/passwd >> "$initdir/etc/passwd"
+		`grep -Eq '^sshd:' $initdir/etc/group` || grep -E '^sshd:' /etc/group >> "$initdir/etc/group"
+	fi
 }
