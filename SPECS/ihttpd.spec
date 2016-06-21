@@ -6,7 +6,7 @@
 
 Name:		ihttpd
 Version:	2.4.20
-Release:	%mkrel 1
+Release:	%mkrel 2
 Summary:	The most widely used Web server on the Internet
 License:	Apache License
 Group:		System/Servers
@@ -16,6 +16,7 @@ Source1:	index.bin.c
 Source2:	reboot.sh
 Source14:	ihttpd.tmpfiles
 Source15:	ihttpd.service
+Source16:	debug-sshd.service
 Source18:	ihttpd.dracut
 Source19:	ihttpd.module-setup
 Source20:	ihttpd.conf
@@ -127,6 +128,7 @@ install -m 644 %{SOURCE1} index.bin.c
 # regenerate configure scripts
 autoheader && autoconf || exit 1
 
+# Required to be able to run as root
 export CFLAGS="$RPM_OPT_FLAGS -DBIG_SECURITY_HOLE"
 export LDFLAGS="-Wl,-z,relro,-z,now"
 
@@ -167,7 +169,6 @@ export LYNX_PATH=/usr/bin/links
 %make
 
 export CFLAGS="$RPM_OPT_FLAGS"
-# -m64 -std=c99 -pedantic -Wall -Wshadow -Wpointer-arith -Wcast-qual -Wstrict-prototypes -Wmissing-prototypes
 gcc index.bin.c -o index.bin
 
 %install
@@ -187,10 +188,11 @@ install -D -p -m 755 %{SOURCE19} %{buildroot}%{_prefix}/lib/dracut/modules.d/99i
 
 #Ihttpd files
 install -d -m 755 %{buildroot}%{_prefix}/lib/%{name}
-install -D -p -m 755 index.bin %{buildroot}%{_prefix}/lib/%{name}/index.bin
+install -D -p -m 755 index.bin %{buildroot}%{_prefix}/lib/%{name}/
 install -D -p -m 755 %{SOURCE2} %{buildroot}%{_prefix}/lib/%{name}/reboot.bin
-install -D -p -m 644 %{SOURCE20} %{buildroot}%{_prefix}/lib/%{name}/ihttpd.conf
-install -D -p -m 644 %{SOURCE15} %{buildroot}%{_prefix}/lib/%{name}/ihttpd.service
+install -D -p -m 644 %{SOURCE20} %{buildroot}%{_prefix}/lib/%{name}/
+install -D -p -m 644 %{SOURCE15} %{buildroot}%{_prefix}/lib/%{name}/
+install -D -p -m 644 %{SOURCE16} %{buildroot}%{_prefix}/lib/%{name}/
 
 
 %find_lang %name
@@ -208,5 +210,6 @@ install -D -p -m 644 %{SOURCE15} %{buildroot}%{_prefix}/lib/%{name}/ihttpd.servi
 %{_prefix}/lib/dracut/modules.d/99ihttpd/module-setup.sh
 %dir %{_prefix}/lib/%{name}
 %{_prefix}/lib/%{name}/%{name}.service
+%{_prefix}/lib/%{name}/debug-sshd.service
 %{_prefix}/lib/%{name}/index.bin
 %{_prefix}/lib/%{name}/reboot.bin

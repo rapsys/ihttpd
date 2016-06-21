@@ -1,0 +1,14 @@
+# Based on /usr/lib/systemd/system/debug-shell.service
+[Unit]
+Description=Early sshd shell FOR DEBUGGING ONLY
+DefaultDependencies=no
+AllowIsolate=no
+IgnoreOnIsolate=yes
+
+[Service]
+Type=simple
+KillMode=none
+ExecStart=@/usr/sbin/sshd /usr/sbin/sshd -e
+
+[Install]
+WantedBy=sysinit.target

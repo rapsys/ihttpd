@@ -1,6 +1,6 @@
 # Based on /usr/lib/systemd/system/debug-shell.service
 [Unit]
-Description=Spawn apache ihttpd server to answer password requests
+Description=The Apache HTTP Server answering password requests
 DefaultDependencies=no
 AllowIsolate=no
 IgnoreOnIsolate=yes
