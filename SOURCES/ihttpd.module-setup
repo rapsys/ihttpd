@@ -63,6 +63,7 @@ install() {
 		/var/www/html
 
 	# Install all files
+	#XXX: force cryptsetup install until systemd-cryptsetup implement a method that don't rely on password ending with \0
 	inst_multiple \
 		/etc/hosts \
 		/etc/localtime \
@@ -76,9 +77,10 @@ install() {
 		$systemdsystemunitdir/systemd-tmpfiles-setup.service \
 		$systemdutildir/systemd-resolved \
 		$tmpfilesdir/ihttpd.conf \
+		'/sbin/cryptsetup' \
 		'/usr/bin/false' \
 		'/usr/bin/reboot' \
-		/usr/sbin/ihttpd
+		'/usr/sbin/ihttpd'
 
 	# Install favicon
 	inst_simple -o /var/www/html/favicon.ico
