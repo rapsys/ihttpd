@@ -5,8 +5,8 @@
 %{?!serverlimit:%global serverlimit 1024}
 
 Name:		ihttpd
-Version:	2.4.20
-Release:	%mkrel 2
+Version:	2.4.33
+Release:	%mkrel 4
 Summary:	The most widely used Web server on the Internet
 License:	Apache License
 Group:		System/Servers
@@ -29,19 +29,19 @@ Patch6:		httpd-2.4.3-apctl-systemd.patch
 Patch7:		httpd-2.4.10-detect-systemd.patch
 # Features/functional changes
 Patch20:	httpd-2.4.3-release.patch
-Patch23:	httpd-2.4.4-export.patch
+#Patch23:	httpd-2.4.4-export.patch
 Patch24:	httpd-2.4.1-corelimit.patch
 Patch26:	httpd-2.4.4-r1337344+.patch
 Patch27:	httpd-2.4.2-icons.patch
 Patch28:	httpd-2.4.4-r1332643+.patch
 Patch30:	httpd-2.4.4-cachehardmax.patch
-Patch31:	httpd-2.4.18-sslmultiproxy.patch
-Patch34:	httpd-2.4.17-socket-activation.patch
-Patch35:	httpd-2.4.17-sslciphdefault.patch
+#Patch31:	httpd-2.4.18-sslmultiproxy.patch
+Patch34:	httpd-2.4.33-socket-activation.patch
+Patch35:	httpd-2.4.33-sslciphdefault.patch
 # Bug fixes
-Patch55:	httpd-2.4.4-malformed-host.patch
-Patch56:	httpd-2.4.4-mod_unique_id.patch
-Patch57:	httpd-2.4.10-sigint.patch
+#Patch55:	httpd-2.4.4-malformed-host.patch
+#Patch56:	httpd-2.4.4-mod_unique_id.patch
+#Patch57:	httpd-2.4.10-sigint.patch
 
 # For /var/www/html
 Requires:	webserver-base
@@ -70,18 +70,18 @@ This version of apache is fully static, and few modules are available built-in.
 %patch6 -p1 -b .apctlsystemd
 %patch7 -p1 -b .detectsystemd
 
-%patch23 -p1 -b .export
+#%patch23 -p1 -b .export
 %patch24 -p1 -b .corelimit
 %patch26 -p1 -b .r1337344+
 %patch27 -p1 -b .icons
 %patch30 -p1 -b .cachehardmax
-%patch31 -p1 -b .sslmultiproxy
+#%patch31 -p1 -b .sslmultiproxy
 %patch34 -p1 -b .socketactivation
 %patch35 -p1 -b .sslciphdefault
 
-%patch55 -p1 -b .malformedhost
-%patch56 -p1 -b .uniqueid
-%patch57 -p1 -b .sigint
+#%patch55 -p1 -b .malformedhost
+#%patch56 -p1 -b .uniqueid
+#%patch57 -p1 -b .sigint
 
 # Patch in vendor/release string
 sed "s/@RELEASE@/%{product_distribution}/" < %{PATCH20} | patch -p1
@@ -195,7 +195,7 @@ install -D -p -m 644 %{SOURCE15} %{buildroot}%{_prefix}/lib/%{name}/
 install -D -p -m 644 %{SOURCE16} %{buildroot}%{_prefix}/lib/%{name}/
 
 
-%find_lang %name
+#%find_lang %name
 
 %post
 %_tmpfilescreate %{name}
