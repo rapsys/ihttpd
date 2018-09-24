@@ -65,6 +65,9 @@
 //Default cryptsetup
 #define CRYPTSETUP "/sbin/cryptsetup"
 
+//Systemd cryptsetup
+#define SYSTEMDCRYPTSETUP "/usr/lib/systemd/systemd-cryptsetup"
+
 //Default pid file
 #define IHTTPDPID "/run/ihttpd/ihttpd.pid"
 
@@ -87,7 +90,8 @@ const struct httpStatusStruct httpStatuses[] = {
 	{400, "Bad Request"},
 	{405, "Method Not Allowed"},
 	{411, "Length Required"},
-	{500, "Internal Server Error"}
+	{500, "Internal Server Error"},
+	{503, "Service Unavailable"}
 };
 
 /**
@@ -137,6 +141,9 @@ void header(const int code, const char *ctype) {
 		case 500:
 			k = 4;
 			break;
+		case 503:
+			k = 5;
+			break;
 		default:
 			k = 0;
 	}
@@ -154,7 +161,7 @@ void header(const int code, const char *ctype) {
  * Show form
  */
 void showForm(const char *requestUri, const int keyfileSizeMax, const int passphraseSizeMax) {
-	header(200, "text/html");
+	header(503, "text/html");
 	printf("<!DOCTYPE HTML>\r\n");
 	printf("<html>\r\n");
 	printf("<head><title>Key upload form</title></head>\r\n");
@@ -757,7 +764,6 @@ int extractIHttpdPid(pid_t *pid) {
  * Main function
  */
 int main(int argc, char **argv) {
-
 	//Get request method
 	char *requestMethod = getenv("REQUEST_METHOD");
 
@@ -793,6 +799,9 @@ int main(int argc, char **argv) {
 
 		//Declare luks and device
 		char *luks = NULL, *device = NULL;
+
+		//Declare cargv
+		char **cargv = NULL;
 
 		//Pairs of pipe for stdin, stdout and stderr
 		int inPipe[2], errPipe[2];
@@ -831,10 +840,30 @@ int main(int argc, char **argv) {
 			die(500, "Failed to extract value");
 		}
 
-
 		//Extract luks and device
 		if ((ret = extractLuksDevice(&luks, &device)) < 0) {
 			die(500, "Failed to extract luks and device");
+		}
+
+		//Declare cargv array
+		char *cargvs[] = { CRYPTSETUP, "-d", "-", "luksOpen", device, luks, NULL };
+		//TODO: device cannot be an UUID=xyz, a resolved block device is required for it
+		char *scargvs[] = { SYSTEMDCRYPTSETUP, "attach", luks, device, "-", NULL };
+
+		//Check cryptsetup binary
+		if (access(CRYPTSETUP, F_OK|X_OK) == -1) {
+			//Check systemdcryptsetup binary
+			if (access(SYSTEMDCRYPTSETUP, F_OK|X_OK) == -1) {
+				die(500, "No cryptsetup available");
+			} else {
+				//Set contextual env
+				//TODO: resolve UUID in real device name
+				//TODO: passing password through the socket is not possible, as it rely on password ending with \0
+				die(500, "systemd-cryptsetupd is not implementable");
+			}
+		} else {
+			//Set contextual env
+			cargv = cargvs;
 		}
 
 		//Create stdin pipe
@@ -854,8 +883,7 @@ int main(int argc, char **argv) {
 
 		//Child process
 		if (pid == 0) {
-			//Child argv
-			char *cargv[] = { CRYPTSETUP, "-d", "-", "luksOpen", device, luks, NULL };
+			//Child arge
 			char *carge[] = { NULL };
 			//Free value
 			free(value);
@@ -873,8 +901,9 @@ int main(int argc, char **argv) {
 			//Close errPipe
 			close(errPipe[0]);
 			close(errPipe[1]);
+
 			//Call cryptsetup
-			if (execve(CRYPTSETUP, cargv, carge) == -1) {
+			if (execve(cargv[0], cargv, carge) == -1) {
 				die(500, "Failed to call cryptsetup");
 			}
 		//Parent process
@@ -904,15 +933,15 @@ int main(int argc, char **argv) {
 				die(500, "Failed to wait child");
 			}
 
-			//Handle already unlocked device
-			if (ret == 1280) {
-				die(200, "Device already unlocked");
 			//Handle already in use device
-			} else if (ret == 5) {
+			if (ret == 5) {
 				die(500, "Device already in use");
+			//Handle already unlocked device
+			//} else if (ret == 1280) {
+			//	die(200, "Device already unlocked");
 			//Handle invalid luks device
-			} else if (ret == 256) {
-				die(500, "Device is now a valid device");
+			//} else if (ret == 256) {
+			//	die(500, "Device is now a valid device");
 			//Handle no key available with this passphrase
 			} else if (ret == 512) {
 				die(500, "No slot for this value");
@@ -960,6 +989,8 @@ int main(int argc, char **argv) {
 			close(errPipe[0]);
 		}
 
+//Removed as it was making fail the process of booting sometimes
+#if 0
 		//Fork process
 		if ((pid = fork()) == -1) {
 			die(500, "Failed to fork");
@@ -1038,6 +1069,12 @@ int main(int argc, char **argv) {
 
 		//Parent process
 		} else {
+#endif
+
+			//Sleep before killing askpassword process
+			if (usleep(500000) == -1) {
+				die(500, "Usleep failed");
+			}
 
 			//Fork process
 			if ((pid = fork()) == -1) {
@@ -1127,7 +1164,9 @@ int main(int argc, char **argv) {
 
 			}
 
+#if 0
 		}
+#endif
 
 	}
 
