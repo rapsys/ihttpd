@@ -78,6 +78,10 @@
 #define ASKPASSWORDLOG "/run/ihttpd/log/child.askpassword.log"
 #define IHTTPDLOG "/run/ihttpd/log/child.ihttpd.log"
 
+//Define form uri
+#define FORMID ""
+#define FORMURI "/" FORMID ".html"
+
 //Create struct for http error status
 struct httpStatusStruct {
 	int value;
@@ -100,6 +104,7 @@ const struct httpStatusStruct httpStatuses[] = {
 void die(const int, const char*);
 void header(const int, const char*);
 void showForm(const char*, const int, const int);
+void showMaintenance();
 int extractValue(char**, int*, char*, int);
 int extractLuksDevice(char**, char**);
 int extractIHttpdPid(pid_t *);
@@ -164,12 +169,38 @@ void showForm(const char *requestUri, const int keyfileSizeMax, const int passph
 	header(503, "text/html");
 	printf("<!DOCTYPE HTML>\r\n");
 	printf("<html>\r\n");
-	printf("<head><title>Key upload form</title></head>\r\n");
+	printf("<head>\r\n");
+	printf("<title>Key upload form!</title>\r\n");
+	printf("<style type=\"text/css\">body{color:black;background-color:white;}a:link{color:#00c;}p,address{margin-left:3em;}span{font-size:smaller;}</style>\r\n");
+	printf("</head>\r\n");
 	printf("<body>\r\n");
 	printf("<div id=\"wrapper\">\r\n");
 	printf("<form enctype=\"multipart/form-data\" action=\"%s\" method=\"post\"><fieldset><legend>Upload key</legend><label for=\"file\"></label><input type=\"hidden\" name=\"MAX_FILE_SIZE\" value=\"%d\" /><input id=\"file\" type=\"file\" name=\"key\" /><input type=\"submit\" value=\"Send\" /></fieldset></form>\r\n", requestUri, keyfileSizeMax);
 	printf("<form action=\"%s\" method=\"post\"><fieldset><legend>Type key</legend><label for=\"password\"></label><input id=\"password\" type=\"password\" name=\"key\" maxlength=\"%d\" /><input type=\"submit\" value=\"Send\" /></fieldset></form>\r\n", requestUri, passphraseSizeMax);
 	printf("</div>\r\n");
+	printf("</body>\r\n");
+	printf("</html>\r\n");
+}
+
+/**
+ * Show maintenance
+ */
+void showMaintenance() {
+	header(503, "text/html");
+	printf("<!DOCTYPE HTML>\r\n");
+	printf("<html>\r\n");
+	printf("<head>\r\n");
+	printf("<title>Service unavailable!</title>\r\n");
+	printf("<style type=\"text/css\">body{color:black;background-color:white;}a:link{color:#00c;}p,address{margin-left:3em;}span{font-size:smaller;}</style>\r\n");
+	printf("</head>\r\n");
+	printf("<body>\r\n");
+	printf("<h1>Service unavailable!</h1>\r\n");
+	printf("<p>The server is temporarily unable to service your\r\n");
+	printf("request due to maintenance downtime or capacity\r\n");
+	printf("problems. Please try again later.</p>\r\n");
+	printf("<h2>Error 503</h2>\r\n");
+	printf("<address><a href=\"/\">%s</a><br /><span>%s</span></address>\r\n", getenv("SERVER_NAME"), getenv("SERVER_SOFTWARE"));
+	printf("<!--crc32:%s-->\r\n", FORMID);
 	printf("</body>\r\n");
 	printf("</html>\r\n");
 }
@@ -766,6 +797,8 @@ int extractIHttpdPid(pid_t *pid) {
 int main(int argc, char **argv) {
 	//Get request method
 	char *requestMethod = getenv("REQUEST_METHOD");
+	//Get request uri
+	char *requestUri = getenv("REQUEST_URI");
 
 	//Handle unknown requests
 	if (requestMethod == NULL || (strncmp(requestMethod, "GET", 3) && strncmp(requestMethod, "HEAD", 4) && strncmp(requestMethod, "POST", 4))) {
@@ -773,8 +806,15 @@ int main(int argc, char **argv) {
 		die(405, "Unsupported request method");
 	//Handle get and head
 	} else if (!strncmp(requestMethod, "GET", 3) || !strncmp(requestMethod, "HEAD", 4)) {
-		//Send form
-		showForm(getenv("REQUEST_URI")?getenv("REQUEST_URI"):"/", DEFAULT_KEYFILE_SIZE_MAX, DEFAULT_PASSPHRASE_SIZE_MAX);
+		//Check if we have form uri
+		if (requestUri != NULL && strlen(requestUri) == strlen(FORMURI) && !strncmp(requestUri, FORMURI, strlen(FORMURI))) {
+			//Send form
+			showForm(requestUri, DEFAULT_KEYFILE_SIZE_MAX, DEFAULT_PASSPHRASE_SIZE_MAX);
+		//Not form uri requested
+		} else {
+			//Send maintenance page
+			showMaintenance();
+		}
 	//Handle post
 	} else /*if (!strncmp(requestMethod, "POST", 4))*/ {
 		//Return value
@@ -848,7 +888,7 @@ int main(int argc, char **argv) {
 		//Declare cargv array
 		char *cargvs[] = { CRYPTSETUP, "-d", "-", "luksOpen", device, luks, NULL };
 		//TODO: device cannot be an UUID=xyz, a resolved block device is required for it
-		char *scargvs[] = { SYSTEMDCRYPTSETUP, "attach", luks, device, "-", NULL };
+		//char *scargvs[] = { SYSTEMDCRYPTSETUP, "attach", luks, device, "-", NULL };
 
 		//Check cryptsetup binary
 		if (access(CRYPTSETUP, F_OK|X_OK) == -1) {

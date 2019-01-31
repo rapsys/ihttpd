@@ -6,7 +6,7 @@
 
 Name:		ihttpd
 Version:	2.4.33
-Release:	%mkrel 4
+Release:	%mkrel 5
 Summary:	The most widely used Web server on the Internet
 License:	Apache License
 Group:		System/Servers
