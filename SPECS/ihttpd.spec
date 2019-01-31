@@ -5,8 +5,8 @@
 %{?!serverlimit:%global serverlimit 1024}
 
 Name:		ihttpd
-Version:	2.4.33
-Release:	%mkrel 5
+Version:	2.4.38
+Release:	%mkrel 1
 Summary:	The most widely used Web server on the Internet
 License:	Apache License
 Group:		System/Servers
@@ -31,13 +31,13 @@ Patch7:		httpd-2.4.10-detect-systemd.patch
 Patch20:	httpd-2.4.3-release.patch
 #Patch23:	httpd-2.4.4-export.patch
 Patch24:	httpd-2.4.1-corelimit.patch
-Patch26:	httpd-2.4.4-r1337344+.patch
+#Patch26:	httpd-2.4.4-r1337344+.patch
 Patch27:	httpd-2.4.2-icons.patch
 Patch28:	httpd-2.4.4-r1332643+.patch
 Patch30:	httpd-2.4.4-cachehardmax.patch
 #Patch31:	httpd-2.4.18-sslmultiproxy.patch
 Patch34:	httpd-2.4.33-socket-activation.patch
-Patch35:	httpd-2.4.33-sslciphdefault.patch
+#Patch35:	httpd-2.4.33-sslciphdefault.patch
 # Bug fixes
 #Patch55:	httpd-2.4.4-malformed-host.patch
 #Patch56:	httpd-2.4.4-mod_unique_id.patch
@@ -72,12 +72,12 @@ This version of apache is fully static, and few modules are available built-in.
 
 #%patch23 -p1 -b .export
 %patch24 -p1 -b .corelimit
-%patch26 -p1 -b .r1337344+
+#%patch26 -p1 -b .r1337344+
 %patch27 -p1 -b .icons
 %patch30 -p1 -b .cachehardmax
 #%patch31 -p1 -b .sslmultiproxy
 %patch34 -p1 -b .socketactivation
-%patch35 -p1 -b .sslciphdefault
+#%patch35 -p1 -b .sslciphdefault
 
 #%patch55 -p1 -b .malformedhost
 #%patch56 -p1 -b .uniqueid
