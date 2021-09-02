@@ -3,12 +3,11 @@ Add layout for IHttpd.
 
 --- httpd-2.4.20/config.layout.orig
 +++ httpd-2.4.20/config.layout
-@@ -370,3 +370,27 @@
-     logfiledir:      ${localstatedir}/log/httpd
-     proxycachedir:   ${localstatedir}/cache/httpd
+@@ -33,6 +33,30 @@
+     proxycachedir: ${localstatedir}/proxy
  </Layout>
-+
-+# IHttpd layout
+ 
++#   IHttpd layout
 +<Layout IHttpd>
 +    prefix:        /usr
 +    exec_prefix:   ${prefix}
@@ -31,3 +30,7 @@ Add layout for IHttpd.
 +    logfiledir:    ${localstatedir}/log/ihttpd
 +    proxycachedir: ${localstatedir}/cache/ihttpd/proxy
 +</Layout>     
++
+ #   GNU standards conforming path layout.
+ #   See FSF's GNU project `make-stds' document for details.
+ <Layout GNU>
