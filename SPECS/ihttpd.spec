@@ -57,7 +57,17 @@ Requires(post):	rpm-helper >= 0.24.8-1
 Requires(post):	openssl makedev
 Requires(preun):	rpm-helper >= 0.24.8-1
 
-BuildRequires:	apr-devel apr-util-devel
+BuildRequires:  bison
+BuildRequires:  flex
+BuildRequires:  libcurl-devel
+BuildRequires:  libtool >= 1.4.2
+BuildRequires:  multiarch-utils >= 1.0.3
+BuildRequires:  pkgconfig(apr-1) >= 1.7.0-4
+BuildRequires:  pkgconfig(apr-util-1) >= 1.6.1-5
+BuildRequires:  pkgconfig(libpcre)
+BuildRequires:  pkgconfig(openssl)
+BuildRequires:  pkgconfig(systemd)
+BuildRequires:  pkgconfig(zlib)
 
 %description
 This package contains the main binary of apache, a powerful, full-featured,
