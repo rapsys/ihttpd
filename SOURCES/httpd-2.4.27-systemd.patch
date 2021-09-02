@@ -1,0 +1,20 @@
+diff -uap httpd-2.4.27/modules/arch/unix/config5.m4.systemd httpd-2.4.27/modules/arch/unix/config5.m4
+--- httpd-2.4.27/modules/arch/unix/config5.m4.systemd
++++ httpd-2.4.27/modules/arch/unix/config5.m4
+@@ -18,6 +18,16 @@
+   fi
+ ])
+ 
++APACHE_MODULE(systemd, Systemd support, , , all, [
++  if test "${ac_cv_header_systemd_sd_daemon_h}" = "no" || test -z "${SYSTEMD_LIBS}"; then
++    AC_MSG_WARN([Your system does not support systemd.])
++    enable_systemd="no"
++  else
++    APR_ADDTO(MOD_SYSTEMD_LDADD, [$SYSTEMD_LIBS])
++    enable_systemd="yes"
++  fi
++])
++
+ APR_ADDTO(INCLUDES, [-I\$(top_srcdir)/$modpath_current])
+ 
+ APACHE_MODPATH_FINISH

@@ -1,3 +1,5 @@
+# (luigiwalser, ngompa): httpd build hates parallelization
+%define _smp_ncpus_max 8
 %define contentdir %{_datadir}/httpd
 %define docroot /var/www
 
@@ -5,8 +7,8 @@
 %{?!serverlimit:%global serverlimit 1024}
 
 Name:		ihttpd
-Version:	2.4.38
-Release:	%mkrel 6
+Version:	2.4.48
+Release:	%mkrel 1
 Summary:	The most widely used Web server on the Internet
 License:	Apache License
 Group:		System/Servers
@@ -28,19 +30,22 @@ Patch6:		httpd-2.4.3-apctl-systemd.patch
 Patch7:		httpd-2.4.10-detect-systemd.patch
 # Features/functional changes
 Patch20:	httpd-2.4.3-release.patch
+#Disable in ihttpd to avoid build fail
 #Patch23:	httpd-2.4.4-export.patch
 Patch24:	httpd-2.4.1-corelimit.patch
 #Patch26:	httpd-2.4.4-r1337344+.patch
 Patch27:	httpd-2.4.2-icons.patch
 Patch28:	httpd-2.4.4-r1332643+.patch
+# http://marc.info/?l=apache-httpd-dev&m=134867223818085&w=2
+Patch29:	httpd-2.4.27-systemd.patch
 Patch30:	httpd-2.4.4-cachehardmax.patch
 #Patch31:	httpd-2.4.18-sslmultiproxy.patch
-Patch34:	httpd-2.4.33-socket-activation.patch
+Patch34:	httpd-2.4.17-socket-activation.patch
 #Patch35:	httpd-2.4.33-sslciphdefault.patch
 # Bug fixes
-#Patch55:	httpd-2.4.4-malformed-host.patch
-#Patch56:	httpd-2.4.4-mod_unique_id.patch
-#Patch57:	httpd-2.4.10-sigint.patch
+# http://issues.apache.org/bugzilla/show_bug.cgi?id=32524
+Patch100:   httpd-2.4.25-ab_source_address.patch
+Patch101:   httpd-2.2.10-ldap_auth_now_modular_in-apr-util-dbd-ldap_fix.diff
 
 # For /var/www/html
 Requires:	webserver-base
@@ -71,18 +76,21 @@ This version of apache is fully static, and few modules are available built-in.
 %patch6 -p1 -b .apctlsystemd
 %patch7 -p1 -b .detectsystemd
 
+#Disable in ihttpd to avoid build fail
 #%patch23 -p1 -b .export
 %patch24 -p1 -b .corelimit
 #%patch26 -p1 -b .r1337344+
 %patch27 -p1 -b .icons
+%patch29 -p1 -b .systemd
 %patch30 -p1 -b .cachehardmax
+# No longer applies
 #%patch31 -p1 -b .sslmultiproxy
 %patch34 -p1 -b .socketactivation
 #%patch35 -p1 -b .sslciphdefault
+#patch44 -p1 -b .luaresume
 
-#%patch55 -p1 -b .malformedhost
-#%patch56 -p1 -b .uniqueid
-#%patch57 -p1 -b .sigint
+%patch100 -p1 -b .ab_source_address.droplet
+%patch101 -p0 -b .PR45994.droplet
 
 # Patch in vendor/release string
 sed "s/@RELEASE@/%{product_distribution}/" < %{PATCH20} | patch -p1
@@ -131,7 +139,8 @@ autoheader && autoconf || exit 1
 
 # Required to be able to run as root
 export CFLAGS="$RPM_OPT_FLAGS -DBIG_SECURITY_HOLE"
-export LDFLAGS="-Wl,-z,relro,-z,now"
+ldflags_hacky_workaround_for_systemd_lib_not_added="-lsystemd "
+export LDFLAGS="${ldflags_hacky_workaround_for_systemd_lib_not_added}-Wl,-z,relro,-z,now"
 
 # Hard-code path to links to avoid unnecessary builddep
 export LYNX_PATH=/usr/bin/links
@@ -167,7 +176,8 @@ export LYNX_PATH=/usr/bin/links
 	--enable-modules=none \
 	--enable-mods-static='unixd auth_basic authn_core authn_file authz_core authz_host authz_user rewrite socache_shmcb dir mime log_config cgi ssl'
 
-%make_build
+# parallel build fails on the build host
+%__make
 
 export CFLAGS="$RPM_OPT_FLAGS"
 gcc index.bin.c -o index.bin

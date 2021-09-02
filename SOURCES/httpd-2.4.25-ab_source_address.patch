@@ -1,0 +1,72 @@
+--- httpd-2.4.35/docs/man/ab.1.bak	2018-10-21 16:10:11.161024133 +0000
++++ httpd-2.4.35/docs/man/ab.1	2018-10-21 16:11:25.689793452 +0000
+@@ -130,6 +130,9 @@
+ \fB-X \fIproxy\fR[:\fIport\fR]\fR
+ Use a proxy server for the requests\&.  
+ .TP
++\fB-o \fIsrc_address\fR\fR
++Set the local source address\&.  
++.TP
+ \fB-y \fI<tr>-attributes\fR\fR
+ String to use as attributes for \fB<tr>\fR\&.  
+ .TP
+--- httpd-2.4.33/support/ab.c.ab_source_address.droplet	2018-03-16 01:02:58.000000000 +0200
++++ httpd-2.4.33/support/ab.c	2018-03-27 10:39:44.792971820 +0300
+@@ -313,6 +313,7 @@
+ const char *connecthost;
+ const char *myhost;
+ apr_port_t connectport;
++char *src_address;
+ const char *gnuplot;          /* GNUplot file */
+ const char *csvperc;          /* CSV Percentile file */
+ const char *fullurl;
+@@ -1299,6 +1300,7 @@
+ static void start_connect(struct connection * c)
+ {
+     apr_status_t rv;
++    apr_sockaddr_t *from;
+ 
+     if (!(started < requests))
+         return;
+@@ -1348,6 +1350,14 @@
+         }
+     }
+ 
++    if (src_address) {
++        if ((rv = apr_sockaddr_info_get(&from, src_address, destsa->family,
++                0, 0, c->ctx)) != APR_SUCCESS)
++                apr_err("src_address get", rv);
++        if ((rv = apr_socket_bind(c->aprsock, from)) != APR_SUCCESS)
++            apr_err("src_address bind", rv);
++    }
++
+     c->start = lasttime = apr_time_now();
+ #ifdef USE_SSL
+     if (is_ssl) {
+@@ -2085,6 +2095,7 @@
+     fprintf(stderr, "    -P attribute    Add Basic Proxy Authentication, the attributes\n");
+     fprintf(stderr, "                    are a colon separated username and password.\n");
+     fprintf(stderr, "    -X proxy:port   Proxyserver and port number to use\n");
++    fprintf(stderr, "    -o src_address  Set the local source address\n");
+     fprintf(stderr, "    -V              Print version number and exit\n");
+     fprintf(stderr, "    -k              Use HTTP KeepAlive feature\n");
+     fprintf(stderr, "    -d              Do not show percentiles served table.\n");
+@@ -2351,7 +2351,7 @@
+     myhost = NULL; /* 0.0.0.0 or :: */
+ 
+     apr_getopt_init(&opt, cntxt, argc, argv);
+-    while ((status = apr_getopt(opt, "n:c:t:s:b:T:p:u:v:lrkVhwiIx:y:z:C:H:P:A:g:X:de:SqB:m:"
++    while ((status = apr_getopt(opt, "o:n:c:t:s:b:T:p:u:v:lrkVhwiIx:y:z:C:H:P:A:g:X:de:SqB:m:"
+ #ifdef USE_SSL
+             "Z:f:E:"
+ #endif
+@@ -2305,6 +2316,9 @@
+             case 'k':
+                 keepalive = 1;
+                 break;
++            case 'o':
++                src_address = strdup(optarg);
++                break;
+             case 'q':
+                 heartbeatres = 0;
+                 break;
