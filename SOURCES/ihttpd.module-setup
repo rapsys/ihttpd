@@ -1,28 +1,24 @@
-#!/bin/bash
+#!/usr/bin/bash
 
 # called by dracut
 check() {
-	local fs
-
-	# Fix tmpfiledir
-	#XXX: fix installation of /usr/lib/tmpfileS.d/{dracut-tmpfiles,systemd}.conf
-	#XXX: should be removed when bug 18642 (mageia) or 1343230 (fedora) will be fixed in /usr/bin/dracut +1262-1282
-	[ -z "$tmpfilesdir" -o ! -d "$tmpfilesdir" -a -d /usr/lib/tmpfiles.d ] && tmpfilesdir=/usr/lib/tmpfiles.d
-	[ -z "$tmpfilesdir" -o ! -d "$tmpfilesdir" -a -d /etc/tmpfiles.d ] && tmpfilesdir=/etc/tmpfiles.d
-	[ -z "$tmpfilesdir" -o ! -d "$tmpfilesdir" -a -d /lib/tmpfiles.d ] && tmpfilesdir=/lib/tmpfiles.d
+	local _fs
 
 	# if cryptsetup is not installed, then we cannot support encrypted devices.
 	require_binaries cryptsetup || return 1
 
-	# if hostonly or mount_needs include if required by other module
-	# if one of fs types is crypto_LUKS include it
-	[[ $hostonly ]] || [[ $mount_needs ]] && {
-		for fs in "${host_fs_types[@]}"; do
-			[[ $fs = "crypto_LUKS" ]] && return 0
+	# hostonly mode check
+	[[ $hostonly ]] && {
+		for _fs in "${host_fs_types[@]}"; do
+			# include when a crypto_LUKS fs is present
+			[[ $_fs = "crypto_LUKS" ]] && return 0
 		done
+
+		# include if required by other module
 		return 255
 	}
 
+	# include by default
 	return 0
 }
 
@@ -30,16 +26,17 @@ check() {
 depends() {
 	# depend on crypt for /etc/crypttab
 	# depend on systemd-networkd for rd.neednet=1
-	# depend on dracut-systemd for appending to $tmpfilesdir/dracut-tmpfiles.conf
-	echo crypt systemd-networkd dracut-systemd
+	echo crypt systemd-networkd
+
 	return 0
 }
 
 # called by dracut
 cmdline() {
-	local fs
-	for fs in "${host_fs_types[@]}"; do
-		if [[ "$fs" == "crypto_LUKS" ]]; then
+	local _fs
+
+	for _fs in "${host_fs_types[@]}"; do
+		if [[ "$_fs" == "crypto_LUKS" ]]; then
 			#XXX we used to include ip=dhcp as well (replaced by systemd-networkd configuration)
 			printf "%s" " rd.neednet=1"
 			break
@@ -50,16 +47,17 @@ cmdline() {
 # called by dracut
 install() {
 	local _ihttpdconf=$(cmdline)
-	local fs
+
 	#XXX: rd.neednet=1 is mandatory to have active network in initrd
 	[[ $_ihttpdconf ]] && printf "%s\n" "$_ihttpdconf" >> "${initdir}/etc/cmdline.d/99ihttpd.conf"
 
-	# Install cert dirs
+	# Install required dirs
 	inst_dir \
 		/etc/pki/tls/certs \
 		/etc/pki/tls/private \
 		/etc/systemd/network \
 		$systemdsystemunitdir/ihttpd.service.wants \
+		$systemdsystemunitdir/sysinit.target.wants \
 		/var/www/html
 
 	# Install all files
@@ -71,12 +69,7 @@ install() {
 		/etc/nsswitch.conf \
 		/etc/pki/tls/certs/ihttpd.pem \
 		/etc/pki/tls/private/ihttpd.pem \
-		/etc/systemd/resolved.conf \
 		$systemdsystemunitdir/systemd-networkd.service \
-		$systemdsystemunitdir/systemd-resolved.service \
-		$systemdsystemunitdir/systemd-tmpfiles-setup.service \
-		$systemdutildir/systemd-resolved \
-		$tmpfilesdir/ihttpd.conf \
 		'/sbin/cryptsetup' \
 		'/usr/bin/false' \
 		'/usr/bin/reboot' \
@@ -122,28 +115,17 @@ install() {
 	done
 
 	# Install resolv.conf as symlink
-	ln -fs '/run/systemd/resolve/resolv.conf' $initdir/etc/resolv.conf
+	grep -vE '^($|#|nameserver 127.0.0.1|nameserver ::1)' /etc/resolv.conf > $initdir/etc/resolv.conf
 
 	# Install in ihttpd.service.wants
 	ln -fs \
-		../systemd-resolved.service \
 		../systemd-networkd.service \
-		../systemd-tmpfiles-setup.service \
 		$initdir$systemdsystemunitdir/ihttpd.service.wants/
-
-	# Cleanup resolved.conf
-	perl -pne 'undef $_ if /^(?:#.*|Domains=|FallbackDNS=|DNS=(?:127.0.0.1|::1)$|$)/;/^DNS=/ && $_ =~ s/(?:127.0.0.1|::1)[ \t]*//g' \
-		-i "$initdir/etc/systemd/resolved.conf"
 
 	# Cleanup nsswitch.conf
 	perl -pne 'undef $_ if /^(?:#|$)/;s/compat/files/;s/ ?(?:nis|wins|mdns4_minimal |mdns4)( )?/\1/g' \
 		-i "$initdir/etc/nsswitch.conf"
 
-	# Require systemd-resolve user and group for our ihttpd process
-	`egrep -q '^systemd-resolve:' $initdir/etc/group` || egrep '^systemd-resolve:' /etc/group >> "$initdir/etc/group"
-	`egrep -q '^systemd-resolve:' $initdir/etc/passwd` || egrep '^systemd-resolve:' /etc/passwd >> "$initdir/etc/passwd"
-	#XXX: bug: fix /usr/lib/tmpfiles.d/{systemd,dracut-tmpfiles}.conf missing user and group
-	`egrep -q '^utmp:' $initdir/etc/group` || egrep '^utmp:' /etc/group >> "$initdir/etc/group"
 	# Require root user and group for our ihttpd process
 	`egrep -q '^root:' $initdir/etc/group` || egrep '^root:' /etc/group >> "$initdir/etc/group"
 	`egrep -q '^root:' $initdir/etc/passwd` || egrep '^root:' /etc/passwd >> "$initdir/etc/passwd"
@@ -163,7 +145,6 @@ install() {
 			$systemdsystemunitdir/basic.target.wants \
 			$systemdsystemunitdir/emergency.target.wants \
 			$systemdsystemunitdir/rescue.target.wants \
-			$systemdsystemunitdir/sysinit.target.wants \
 			/usr/lib64/security \
 			/usr/share/terminfo/x \
 			/var/empty
