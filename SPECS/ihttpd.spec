@@ -136,7 +136,7 @@ export LDFLAGS="-Wl,-z,relro,-z,now"
 # Hard-code path to links to avoid unnecessary builddep
 export LYNX_PATH=/usr/bin/links
 
-%configure2_5x \
+%configure \
 	--enable-layout=IHttpd \
 	--sysconfdir='/etc' \
 	--includedir='/usr/include/ihttpd' \
@@ -167,7 +167,7 @@ export LYNX_PATH=/usr/bin/links
 	--enable-modules=none \
 	--enable-mods-static='unixd auth_basic authn_core authn_file authz_core authz_host authz_user rewrite socache_shmcb dir mime log_config cgi ssl'
 
-%make
+%make_build
 
 export CFLAGS="$RPM_OPT_FLAGS"
 gcc index.bin.c -o index.bin
