@@ -6,7 +6,7 @@
 
 Name:		ihttpd
 Version:	2.4.38
-Release:	%mkrel 5
+Release:	%mkrel 6
 Summary:	The most widely used Web server on the Internet
 License:	Apache License
 Group:		System/Servers
@@ -19,7 +19,6 @@ Source16:	debug-sshd.service
 Source18:	ihttpd.dracut
 Source19:	ihttpd.module-setup
 Source20:	ihttpd.conf
-#Source21:	ihttpd.modprobe
 # build/scripts patches
 Patch1:		httpd-2.4.1-apctl.patch
 Patch2:		httpd-2.4.9-apxs.patch
@@ -185,9 +184,6 @@ install -D -p -m 644 %{SOURCE18} %{buildroot}%{_sysconfdir}/dracut.conf.d/99-%{n
 install -d -m 755 %{buildroot}%{_prefix}/lib/dracut/modules.d/99ihttpd
 install -D -p -m 755 %{SOURCE19} %{buildroot}%{_prefix}/lib/dracut/modules.d/99ihttpd/module-setup.sh
 
-#IHttpd modprobe config
-#install -D -p -m 644 %{SOURCE21} %{buildroot}%{_sysconfdir}/modprobe.d/%{name}.conf
-
 #Ihttpd files
 install -d -m 755 %{buildroot}%{_prefix}/lib/%{name}
 install -D -p -m 755 index.bin %{buildroot}%{_prefix}/lib/%{name}/
@@ -205,7 +201,6 @@ install -D -p -m 644 %{SOURCE16} %{buildroot}%{_prefix}/lib/%{name}/
 %files -n %name
 %config(noreplace) %{_prefix}/lib/%{name}/%{name}.conf
 %config(noreplace) %{_sysconfdir}/dracut.conf.d/99-%{name}.conf
-#%config(noreplace) %{_sysconfdir}/modprobe.d/%{name}.conf
 %{_sbindir}/%{name}
 %dir %{_prefix}/lib/dracut/modules.d/99ihttpd
 %{_prefix}/lib/dracut/modules.d/99ihttpd/module-setup.sh
