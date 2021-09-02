@@ -6,7 +6,7 @@
 
 Name:		ihttpd
 Version:	2.4.38
-Release:	%mkrel 1
+Release:	%mkrel 5
 Summary:	The most widely used Web server on the Internet
 License:	Apache License
 Group:		System/Servers
@@ -14,12 +14,12 @@ URL:		http://httpd.apache.org/
 Source0:	http://www.apache.org/dist/httpd/httpd-%version.tar.bz2
 Source1:	index.bin.c
 Source2:	reboot.sh
-Source14:	ihttpd.tmpfiles
 Source15:	ihttpd.service
 Source16:	debug-sshd.service
 Source18:	ihttpd.dracut
 Source19:	ihttpd.module-setup
 Source20:	ihttpd.conf
+#Source21:	ihttpd.modprobe
 # build/scripts patches
 Patch1:		httpd-2.4.1-apctl.patch
 Patch2:		httpd-2.4.9-apxs.patch
@@ -52,6 +52,8 @@ Requires(post):	systemd >= %{systemd_required_version}
 Requires(post):	rpm-helper >= 0.24.8-1
 Requires(post):	openssl makedev
 Requires(preun):	rpm-helper >= 0.24.8-1
+
+BuildRequires:	apr-devel apr-util-devel
 
 %description
 This package contains the main binary of apache, a powerful, full-featured,
@@ -176,15 +178,15 @@ gcc index.bin.c -o index.bin
 #IHttpd sbin
 install -D -p -m 755 ihttpd %{buildroot}%{_sbindir}/ihttpd
 
-#Tmpfiles.d config
-install -D -p -m 644 %{SOURCE14} %{buildroot}%{_tmpfilesdir}/ihttpd.conf
-
 #IHttpd dracut config
 install -D -p -m 644 %{SOURCE18} %{buildroot}%{_sysconfdir}/dracut.conf.d/99-%{name}.conf
 
 #IHttpd dracut module
 install -d -m 755 %{buildroot}%{_prefix}/lib/dracut/modules.d/99ihttpd
 install -D -p -m 755 %{SOURCE19} %{buildroot}%{_prefix}/lib/dracut/modules.d/99ihttpd/module-setup.sh
+
+#IHttpd modprobe config
+#install -D -p -m 644 %{SOURCE21} %{buildroot}%{_sysconfdir}/modprobe.d/%{name}.conf
 
 #Ihttpd files
 install -d -m 755 %{buildroot}%{_prefix}/lib/%{name}
@@ -198,14 +200,13 @@ install -D -p -m 644 %{SOURCE16} %{buildroot}%{_prefix}/lib/%{name}/
 #%find_lang %name
 
 %post
-%_tmpfilescreate %{name}
 %_create_ssl_certificate %{name}
 
 %files -n %name
 %config(noreplace) %{_prefix}/lib/%{name}/%{name}.conf
 %config(noreplace) %{_sysconfdir}/dracut.conf.d/99-%{name}.conf
+#%config(noreplace) %{_sysconfdir}/modprobe.d/%{name}.conf
 %{_sbindir}/%{name}
-%{_tmpfilesdir}/%{name}.conf
 %dir %{_prefix}/lib/dracut/modules.d/99ihttpd
 %{_prefix}/lib/dracut/modules.d/99ihttpd/module-setup.sh
 %dir %{_prefix}/lib/%{name}
