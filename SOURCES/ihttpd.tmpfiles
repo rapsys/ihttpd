@@ -1,2 +1,0 @@
-d /run/ihttpd   755 root root
-d /run/ihttpd/log   755 root root
