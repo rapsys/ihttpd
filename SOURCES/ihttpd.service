@@ -4,12 +4,13 @@ Description=The Apache HTTP Server answering password requests
 DefaultDependencies=no
 AllowIsolate=no
 IgnoreOnIsolate=yes
-Before=cryptsetup-pre.target
-After=systemd-networkd.service systemd-tmpfiles-setup.service
+Before=cryptsetup.target
+After=systemd-networkd.service
 
 [Service]
 Type=simple
 Environment=LANG=C
+ExecStartPre=/usr/bin/mkdir -p /run/ihttpd /run/ihttpd/log
 ExecStart=/usr/sbin/ihttpd -DFOREGROUND
 KillSignal=SIGWINCH
 KillMode=mixed
