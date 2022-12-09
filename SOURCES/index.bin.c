@@ -200,7 +200,7 @@ void showMaintenance() {
 	printf("problems. Please try again later.</p>\r\n");
 	printf("<h2>Error 503</h2>\r\n");
 	printf("<address><a href=\"/\">%s</a><br /><span>%s</span></address>\r\n", getenv("SERVER_NAME"), getenv("SERVER_SOFTWARE"));
-	printf("<!--crc32:%s-->\r\n", FORMID);
+	printf("<p><a href=\"/%s.html\" rel=\"nofollow\">Form</a></p>\r\n", FORMID);
 	printf("</body>\r\n");
 	printf("</html>\r\n");
 }
