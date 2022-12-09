@@ -7,7 +7,7 @@
 %{?!serverlimit:%global serverlimit 1024}
 
 Name:		ihttpd
-Version:	2.4.48
+Version:	2.4.54
 Release:	%mkrel 1
 Summary:	The most widely used Web server on the Internet
 License:	Apache License
@@ -211,9 +211,6 @@ install -D -p -m 755 %{SOURCE2} %{buildroot}%{_prefix}/lib/%{name}/reboot.bin
 install -D -p -m 644 %{SOURCE20} %{buildroot}%{_prefix}/lib/%{name}/
 install -D -p -m 644 %{SOURCE15} %{buildroot}%{_prefix}/lib/%{name}/
 install -D -p -m 644 %{SOURCE16} %{buildroot}%{_prefix}/lib/%{name}/
-
-
-#%find_lang %name
 
 %post
 %_create_ssl_certificate %{name}
