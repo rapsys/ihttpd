@@ -1,4 +1,4 @@
-# Unomit mageia's omited network and systemd modules
+# Unomit mageia's omited systemd module
 omit_dracutmodules=" network "
 
 # Add various drivers

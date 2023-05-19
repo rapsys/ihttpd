@@ -1,16 +1,19 @@
+%global __brp_check_rpaths %{nil}
+%define _disable_ld_no_undefined 1
 # (luigiwalser, ngompa): httpd build hates parallelization
 %define _smp_ncpus_max 8
 %define contentdir %{_datadir}/httpd
 %define docroot /var/www
+%define vstring Mageia
 
 %{?!maxmodules:%global maxmodules 128}
 %{?!serverlimit:%global serverlimit 1024}
 
 Name:		ihttpd
-Version:	2.4.54
+Version:	2.4.57
 Release:	%mkrel 1
 Summary:	The most widely used Web server on the Internet
-License:	Apache License
+License:	ASL 2.0
 Group:		System/Servers
 URL:		http://httpd.apache.org/
 Source0:	http://www.apache.org/dist/httpd/httpd-%version.tar.bz2
@@ -64,9 +67,9 @@ BuildRequires:  libtool >= 1.4.2
 BuildRequires:  multiarch-utils >= 1.0.3
 BuildRequires:  pkgconfig(apr-1) >= 1.7.0-4
 BuildRequires:  pkgconfig(apr-util-1) >= 1.6.1-5
-BuildRequires:  pkgconfig(libpcre)
+BuildRequires:  pkgconfig(libpcre2-8)
 BuildRequires:  pkgconfig(openssl)
-BuildRequires:  pkgconfig(systemd)
+BuildRequires:  pkgconfig(libsystemd)
 BuildRequires:  pkgconfig(zlib)
 
 %description
@@ -103,7 +106,7 @@ This version of apache is fully static, and few modules are available built-in.
 %patch101 -p0 -b .PR45994.droplet
 
 # Patch in vendor/release string
-sed "s/@RELEASE@/%{product_distribution}/" < %{PATCH20} | patch -p1
+sed "s/@RELEASE@/%{vstring}/" < %{PATCH20} | patch -p1
 
 # forcibly prevent use of bundled apr, apr-util, pcre
 rm -rf srclib/{apr,apr-util,pcre}
