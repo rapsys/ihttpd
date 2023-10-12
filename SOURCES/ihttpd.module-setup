@@ -127,8 +127,8 @@ install() {
 		-i "$initdir/etc/nsswitch.conf"
 
 	# Require root user and group for our ihttpd process
-	`egrep -q '^root:' $initdir/etc/group` || egrep '^root:' /etc/group >> "$initdir/etc/group"
-	`egrep -q '^root:' $initdir/etc/passwd` || egrep '^root:' /etc/passwd >> "$initdir/etc/passwd"
+	`grep -Eq '^root:' $initdir/etc/group` || grep -E '^root:' /etc/group >> "$initdir/etc/group"
+	`grep -Eq '^root:' $initdir/etc/passwd` || grep -E '^root:' /etc/passwd >> "$initdir/etc/passwd"
 
 	# For debug only
 	if false; then
