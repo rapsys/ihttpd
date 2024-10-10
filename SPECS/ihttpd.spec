@@ -10,7 +10,7 @@
 %{?!serverlimit:%global serverlimit 1024}
 
 Name:		ihttpd
-Version:	2.4.57
+Version:	2.4.62
 Release:	%mkrel 1
 Summary:	The most widely used Web server on the Internet
 License:	ASL 2.0
@@ -43,7 +43,7 @@ Patch28:	httpd-2.4.4-r1332643+.patch
 Patch29:	httpd-2.4.27-systemd.patch
 Patch30:	httpd-2.4.4-cachehardmax.patch
 #Patch31:	httpd-2.4.18-sslmultiproxy.patch
-Patch34:	httpd-2.4.17-socket-activation.patch
+Patch34:	httpd-2.4.60-socket-activation.patch
 #Patch35:	httpd-2.4.33-sslciphdefault.patch
 # Bug fixes
 # http://issues.apache.org/bugzilla/show_bug.cgi?id=32524
@@ -82,28 +82,28 @@ This version of apache is fully static, and few modules are available built-in.
 %prep
 %setup -q -n httpd-%{version}
 
-%patch1 -p1 -b .apctl
-%patch2 -p1 -b .apxs
-%patch3 -p1 -b .deplibs
-%patch5 -p1 -b .layout
-%patch6 -p1 -b .apctlsystemd
-%patch7 -p1 -b .detectsystemd
+%patch1 -P 1 -p1 -b .apctl
+%patch2 -P 2 -p1 -b .apxs
+%patch3 -P 3 -p1 -b .deplibs
+%patch5 -P 5 -p1 -b .layout
+%patch6 -P 6 -p1 -b .apctlsystemd
+%patch7 -P 7 -p1 -b .detectsystemd
 
 #Disable in ihttpd to avoid build fail
-#%patch23 -p1 -b .export
-%patch24 -p1 -b .corelimit
-#%patch26 -p1 -b .r1337344+
-%patch27 -p1 -b .icons
-%patch29 -p1 -b .systemd
-%patch30 -p1 -b .cachehardmax
+#%patch23 -P 23 -p1 -b .export
+%patch24 -P 24 -p1 -b .corelimit
+#%patch26 -P 26 -p1 -b .r1337344+
+%patch27 -P 27 -p1 -b .icons
+%patch29 -P 29 -p1 -b .systemd
+%patch30 -P 30 -p1 -b .cachehardmax
 # No longer applies
-#%patch31 -p1 -b .sslmultiproxy
-%patch34 -p1 -b .socketactivation
-#%patch35 -p1 -b .sslciphdefault
-#patch44 -p1 -b .luaresume
+#%patch31 -P 31 -p1 -b .sslmultiproxy
+%patch34 -P 34 -p1 -b .socketactivation
+#%patch35 -P 35 -p1 -b .sslciphdefault
+#patch44 -P 44 -p1 -b .luaresume
 
-%patch100 -p1 -b .ab_source_address.droplet
-%patch101 -p0 -b .PR45994.droplet
+%patch100 -P 100 -p1 -b .ab_source_address.droplet
+%patch101 -P 101 -p0 -b .PR45994.droplet
 
 # Patch in vendor/release string
 sed "s/@RELEASE@/%{vstring}/" < %{PATCH20} | patch -p1
