@@ -82,28 +82,28 @@ This version of apache is fully static, and few modules are available built-in.
 %prep
 %setup -q -n httpd-%{version}
 
-%patch1 -P 1 -p1 -b .apctl
-%patch2 -P 2 -p1 -b .apxs
-%patch3 -P 3 -p1 -b .deplibs
-%patch5 -P 5 -p1 -b .layout
-%patch6 -P 6 -p1 -b .apctlsystemd
-%patch7 -P 7 -p1 -b .detectsystemd
+%patch -P 1 -p1 -b .apctl
+%patch -P 2 -p1 -b .apxs
+%patch -P 3 -p1 -b .deplibs
+%patch -P 5 -p1 -b .layout
+%patch -P 6 -p1 -b .apctlsystemd
+%patch -P 7 -p1 -b .detectsystemd
 
 #Disable in ihttpd to avoid build fail
-#%patch23 -P 23 -p1 -b .export
-%patch24 -P 24 -p1 -b .corelimit
-#%patch26 -P 26 -p1 -b .r1337344+
-%patch27 -P 27 -p1 -b .icons
-%patch29 -P 29 -p1 -b .systemd
-%patch30 -P 30 -p1 -b .cachehardmax
+#%patch -P 23 -p1 -b .export
+%patch -P 24 -p1 -b .corelimit
+#%patch -P 26 -p1 -b .r1337344+
+%patch -P 27 -p1 -b .icons
+%patch -P 29 -p1 -b .systemd
+%patch -P 30 -p1 -b .cachehardmax
 # No longer applies
-#%patch31 -P 31 -p1 -b .sslmultiproxy
-%patch34 -P 34 -p1 -b .socketactivation
-#%patch35 -P 35 -p1 -b .sslciphdefault
-#patch44 -P 44 -p1 -b .luaresume
+#%patch -P 31 -p1 -b .sslmultiproxy
+%patch -P 34 -p1 -b .socketactivation
+#%patch -P 35 -p1 -b .sslciphdefault
+#patch -P 44 -p1 -b .luaresume
 
-%patch100 -P 100 -p1 -b .ab_source_address.droplet
-%patch101 -P 101 -p0 -b .PR45994.droplet
+%patch -P 100 -p1 -b .ab_source_address.droplet
+%patch -P 101 -p0 -b .PR45994.droplet
 
 # Patch in vendor/release string
 sed "s/@RELEASE@/%{vstring}/" < %{PATCH20} | patch -p1
